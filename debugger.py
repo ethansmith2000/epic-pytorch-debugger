@@ -40,7 +40,7 @@ class TreeNode:
 
 
 
-class EpicDebugger(TorchDispatchMode):
+class EpicPytorchDebugger(TorchDispatchMode):
     def __init__(self, debug_always=False, enabled=True, do_pdb=True, exception_fn=None, normal_debug_fn=None, run_trace=True, **debug_kwargs):
         """
         debug_always: if True, will always run the normal_debug_fn
@@ -157,11 +157,11 @@ class EpicDebugger(TorchDispatchMode):
 
 
 # if you want to use as a decorator over an entire function
-def epic_debugger_decorator(enabled=True, debug_always=False, do_pdb=True, exception_fn=None, normal_debug_fn=None, **debug_kwargs):
+def epic_pytorch_debugger_decorator(enabled=True, debug_always=False, do_pdb=True, exception_fn=None, normal_debug_fn=None, **debug_kwargs):
     def debug_decorator(func):
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
-            with EpicDebugger(debug_always=debug_always, enabled=enabled, do_pdb=do_pdb, exception_fn=exception_fn, normal_debug_fn=normal_debug_fn, **debug_kwargs):
+            with EpicPytorchDebugger(debug_always=debug_always, enabled=enabled, do_pdb=do_pdb, exception_fn=exception_fn, normal_debug_fn=normal_debug_fn, **debug_kwargs):
                 return func(*args, **kwargs)
         return wrapper
     return debug_decorator
