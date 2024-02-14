@@ -32,6 +32,11 @@ any other keyword arguments can be passed to the decorator and will be fed throu
 
 see the provided notebook for examples.
 
+TODO
+- [ ] fix the computation graph
+- [ ] add support for integrating hooks within the debugger
+- [ ] see what happens when used during a backward pass (currently untested)
+
 
 
 
