@@ -18,6 +18,27 @@ import gc
 
 import re
 
+class TreeNode:
+    def __init__(self, data):
+        self.data = data
+        self.children = []
+
+    def add_child(self, child):
+        self.children.append(child)
+
+    def remove_child(self, child):
+        self.children = [c for c in self.children if c is not child]
+    
+    def __repr__(self, level=0, prefix='', is_last=True):
+        connector = "└── " if is_last else "├── "
+        result = f"{prefix}{connector}{self.data}\n"
+        prefix += "    " if is_last else "│   "
+        for i, child in enumerate(self.children):
+            is_last_child = i == len(self.children) - 1
+            result += child.__repr__(level+1, prefix, is_last_child)
+        return result
+
+
 
 class EpicDebugger(TorchDispatchMode):
     def __init__(self, debug_always=False, enabled=True, do_pdb=True, exception_fn=None, normal_debug_fn=None, run_trace=True, **debug_kwargs):
@@ -45,27 +66,23 @@ class EpicDebugger(TorchDispatchMode):
 
 
     def __torch_dispatch__(self, func, types, args=(), kwargs=None):
-        parent_names = []
+        comp_graphs = []
         
-        def gather_names(x):
-            if hasattr(x, "tensor_name"):
-                parent_names.append(x.tensor_name)
+        def gather_comp_graphs(x):
+            if hasattr(x, "comp_graph"):
+                comp_graphs.append(x.comp_graph)
         
-        tree_map(gather_names, args)
-        tree_map(gather_names, kwargs)
+        tree_map(gather_comp_graphs, args)
+        tree_map(gather_comp_graphs, kwargs)
 
         out = func(*args, **kwargs)
 
-        if len(parent_names) > 0:
-            parent_names = "+".join(parent_names)
-            parent_names = "(" + parent_names + ")"
-
+        if len(comp_graphs) > 0:
             def name(x):
                 if isinstance(x, torch.Tensor):
-                    if hasattr(x, "tensor_name"):
-                        x.tensor_name = parent_names + "\nV\n"
-                    else:
-                        x.tensor_name = parent_names
+                    x.comp_graph = TreeNode("temp")
+                    for node in comp_graphs:
+                        x.comp_graph.add_child(node)
                 return x
             
             return tree_map(name, out)
@@ -101,14 +118,12 @@ class EpicDebugger(TorchDispatchMode):
 
         tensors = {name: obj for name, obj in local_vars if isinstance(obj, torch.Tensor)}
         for name, tensor in tensors.items():
-            if not hasattr(tensor, 'tensor_name'):
-                setattr(tensor, 'tensor_name', name)
-            # replace ending, theres a lot of random vars that end up here that we don't want
-            elif re.match(r".*\nV\n.*", tensor.tensor_name):
-                base = tensor.tensor_name.split("\nV\n")[:-1]
-                setattr(tensor, 'tensor_name', "\nV\n".join(base) + "\nV\n" + name)
-            elif tensor.tensor_name.endswith("\nV\n"):
-                setattr(tensor, 'tensor_name', tensor.tensor_name + name)
+            setattr(tensor, 'tensor_name', name)
+
+            if not hasattr(tensor, 'comp_graph'):
+                tensor.comp_graph = TreeNode(name)
+            else:
+                tensor.comp_graph.data = name
 
 
     def __exit__(self, exc_type, exc_val, exc_tb):
