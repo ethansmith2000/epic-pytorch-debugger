@@ -36,6 +36,7 @@ TODO
 - [ ] fix the computation graph
 - [ ] add support for integrating hooks within the debugger
 - [ ] see what happens when used during a backward pass (currently untested)
+- [ ] see if there's a better way to grab variable names, current way is very inefficient
 
 
 
