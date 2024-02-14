@@ -57,17 +57,21 @@ class EpicDebugger(TorchDispatchMode):
         out = func(*args, **kwargs)
 
         if len(parent_names) > 0:
-            parent_names = "-".join(parent_names)
+            parent_names = "+".join(parent_names)
             parent_names = "(" + parent_names + ")"
 
             def name(x):
                 if isinstance(x, torch.Tensor):
-                    x.tensor_name = parent_names
+                    if hasattr(x, "tensor_name"):
+                        x.tensor_name = parent_names + "\nV\n"
+                    else:
+                        x.tensor_name = parent_names
                 return x
             
-            out = tree_map(name, out)
-
-        return out
+            return tree_map(name, out)
+        
+        else:
+            return out
 
     def __enter__(self):
         _push_mode(self, self.__dict__.get("_dispatch_key", None))
@@ -99,6 +103,12 @@ class EpicDebugger(TorchDispatchMode):
         for name, tensor in tensors.items():
             if not hasattr(tensor, 'tensor_name'):
                 setattr(tensor, 'tensor_name', name)
+            # replace ending, theres a lot of random vars that end up here that we don't want
+            elif re.match(r".*\nV\n.*", tensor.tensor_name):
+                base = tensor.tensor_name.split("\nV\n")[:-1]
+                setattr(tensor, 'tensor_name', "\nV\n".join(base) + "\nV\n" + name)
+            elif tensor.tensor_name.endswith("\nV\n"):
+                setattr(tensor, 'tensor_name', tensor.tensor_name + name)
 
 
     def __exit__(self, exc_type, exc_val, exc_tb):
